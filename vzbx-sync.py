@@ -28,7 +28,7 @@ from debug_toolkit import (
 )
 
 # Read config file
-f = open("vzbx-sync.yaml", mode="r", encoding="utf-8")
+f = open("vzbx-sync_dev.yaml", mode="r", encoding="utf-8")
 config = yaml.safe_load(f)
 
 # Flow control
@@ -71,10 +71,9 @@ NAME_NOEXT = os.path.splitext(os.path.basename(__file__))[0]
 LOG_FILE = PATH_NOEXT + LOG_SUFFIX
 
 
-with open("vzbx-sync.yaml", "r") as f:
-    config_logging = yaml.safe_load(f.read())["logging"]
-    config_logging["handlers"]["file"]["filename"] = LOG_FILE
-    logging.config.dictConfig(config_logging)
+config_logging = config["logging"]
+config_logging["handlers"]["file"]["filename"] = LOG_FILE
+logging.config.dictConfig(config_logging)
 logger = logging.getLogger(NAME_NOEXT)
 logger.info("Started.")
 

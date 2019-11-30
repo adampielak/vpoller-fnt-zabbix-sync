@@ -5,3 +5,4 @@
 *test*
 !.env_vbzx-sync
 !.python_version
+.DS_Store

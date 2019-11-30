@@ -1,1 +1,1 @@
-../../../../zabbix/externalscripts/lib/debug_toolkit.py
+../../../../../zabbix/externalscripts/lib/debug_toolkit.py
