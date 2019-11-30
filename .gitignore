@@ -1,0 +1,6 @@
+.vscode
+*_dev*
+*log
+*.ipynb
+*test*
+

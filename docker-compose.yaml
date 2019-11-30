@@ -1,0 +1,7 @@
+version: '3.5'
+services:
+ vzbx-sync:
+  image: djettah/vzbx-sync
+  build: .
+  env_file:
+   - .env_vzbx-sync

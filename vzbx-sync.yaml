@@ -1,0 +1,52 @@
+general:
+  debug: true
+  dryrun: false
+
+vpoller:
+  endpoint: tcp://address:port
+  vc_host: address
+
+zabbix:
+  url: https://address
+  username: username
+  password: password
+  hostgroup: FNT Command
+  template: Template FNT Virtual Server
+
+command:
+  url: http://address:port
+  username: username
+  password: password
+
+logging:
+  version: 1
+  formatters:
+    simple:
+      format: '%(asctime)s:%(name)s:%(levelname)s:%(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stderr
+    file:
+      class: logging.FileHandler
+      level: ERROR
+      formatter: simple
+      filename: <defined_in_code.log>
+  loggers:
+    vzbx-sync:
+      level: DEBUG
+      handlers: [console, file]
+      propagate: no
+    pyzabbix:
+      level: INFO
+      handlers: [console, file]
+      propagate: no
+    requests.packages.urllib3:
+      level: WARN
+      handlers: [console, file]
+      propagate: yes
+  root:
+    level: WARN
+    handlers: [console, file]
