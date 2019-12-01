@@ -1,9 +1,10 @@
+!.env_vbzx-sync
+!.python_version
 .vscode
+*.egg-info
 *_dev*
 *log
 *.ipynb
 *test*
-!.env_vbzx-sync
-!.python_version
 .DS_Store
 __pycache__

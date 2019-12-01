@@ -1,14 +1,15 @@
+#!/usr/bin/env python3
 #%%
+import sys
+import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
 import json
-import sys
 import logging
 import logging.config
 import requests
 import re
 import yaml
 import time
-import os
 import atexit
 import math
 from datetime import datetime
@@ -71,7 +72,6 @@ if DEBUG:
 if DRYRUN and DEBUG:
     LOG_SUFFIX = "_DRYDEBUG.log"
 LOG_FILE = PATH_NOEXT + LOG_SUFFIX
-
 
 config_logging = config["logging"]
 config_logging["handlers"]["file"]["filename"] = LOG_FILE
@@ -308,7 +308,6 @@ def get_hostgroupid_by_name(zapi, name):
 def get_templateid_by_name(zapi, name):
     return int(zapi.template.get(filter={"host": name})[0]["templateid"])
 
-
 @measure
 @deflogger
 def run_vpoller_fnt_sync():
@@ -500,3 +499,4 @@ while i <= LOOPS or LOOPS == -1:
 
 # if __name__ == "__main__":
 #    main()
+

@@ -10,8 +10,11 @@ cd /app/vfz_sync
 
 DEFAULT_CONFIG=$(cat <<-END
 general:
-  debug: true
-  dryrun: false
+  debug: ${GENERAL_DEBUG}
+  dryrun: ${GENERAL_DRYRUN}
+  trace: ${GENERAL_TRACE}
+  interval: ${GENERAL_INTERVAL}
+  loops: ${GENERAL_LOOPS}
 
 vpoller:
   endpoint: ${VPOLLER_ENDPOINT}

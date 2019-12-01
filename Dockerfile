@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:experimental
+# syntax = docker/dockerfile:1.0-experimental
 
-FROM python:3.8.0
+FROM python:3.8
 
 WORKDIR /app
 
