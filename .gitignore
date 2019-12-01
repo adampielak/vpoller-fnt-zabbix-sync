@@ -6,3 +6,4 @@
 !.env_vbzx-sync
 !.python_version
 .DS_Store
+__pycache__

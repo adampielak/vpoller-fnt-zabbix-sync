@@ -1,3 +1,5 @@
+#%%
+sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
 import json
 import sys
 import logging
@@ -8,39 +10,41 @@ import yaml
 import time
 import os
 import atexit
-from urllib3.exceptions import HTTPError as BaseHTTPError
+import math
 from datetime import datetime
 from pprint import pprint  # #dev
 from pyzabbix.api import ZabbixAPI, ZabbixAPIException
 from vpoller.client import VPollerClient
 # import http.client
 # http.client.HTTPConnection.debuglevel = 1
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
+# from urllib3.exceptions import HTTPError as BaseHTTPError
 import debug_toolkit
 from debug_toolkit import (
     deflogger,
     dry_request,
     measure,
-    first,
     handle_exception,
     crash_me,
 )
 
 # Read config file
-f = open("vzbx-sync_dev.yaml", mode="r", encoding="utf-8")
+PATH_NOEXT = os.path.splitext(__file__)[0]
+NAME_NOEXT = os.path.splitext(os.path.basename(__file__))[0]
+CONFIG_PATH = f"{PATH_NOEXT}.yaml"
+f = open(CONFIG_PATH, mode="r", encoding="utf-8")
 config = yaml.safe_load(f)
 
 # Flow control
-DEBUG = config["general"]["debug"]
-DRYRUN = config["general"]["dryrun"]
+DEBUG = debug_toolkit.DEBUG = config["general"]["debug"]
+TRACE = debug_toolkit.TRACE = config["general"]["trace"]
+DRYRUN = debug_toolkit.DRYRUN = config["general"]["dryrun"]
 
-
+@deflogger
 def exit_process():
-    if "db" in globals():
-        db.close()
     if "zapi" in globals():
         zapi.user.logout()
+    if "command" in globals():
+        pass  # todo
 
     logger.debug("DEBUG summary:")
     if "stats" in globals() and stats:
@@ -66,8 +70,6 @@ if DEBUG:
     LOG_SUFFIX = "_DEBUG.log"
 if DRYRUN and DEBUG:
     LOG_SUFFIX = "_DRYDEBUG.log"
-PATH_NOEXT = os.path.splitext(__file__)[0]
-NAME_NOEXT = os.path.splitext(os.path.basename(__file__))[0]
 LOG_FILE = PATH_NOEXT + LOG_SUFFIX
 
 
@@ -87,6 +89,7 @@ class vPollerAPI:
         super().__init__()
         self.client = VPollerClient(endpoint=vpoller_endpoint)
 
+    @deflogger
     def run(self, vc_host, method, name=None, properties=None):
         msg = {"method": method, "hostname": vc_host}
         if name:
@@ -113,6 +116,7 @@ class FNTCommandAPI:
         self.authorized = False
         self.auth(url, username, password)
 
+    @deflogger
     def send_request(self, method, payload=None, headers=None, params=None):
         fnt_api_endpoint = "{}/{}".format(self.fnt_api_url, method)
 
@@ -123,11 +127,11 @@ class FNTCommandAPI:
                 url=fnt_api_endpoint,
                 data=json.dumps(payload),
                 headers=headers,
-                params=params, 
-                timeout=5
+                params=params,
+                timeout=5,
             )
         except:
-            logger.exception(f'Failed to send request ({fnt_api_endpoint=})')
+            logger.exception(f"Failed to send request ({fnt_api_endpoint=})")
             sys.exit(1)
 
         if response and response.json()["status"]["success"]:
@@ -157,7 +161,7 @@ class FNTCommandAPI:
     #     if not self.authorized:
     #         logger.warning(f"Not authorized to execute {method} method")
     #         return False
-    
+
     def get_entities(
         self, entity_type, entity_custom=False, restrictions={}, attributes=[]
     ):
@@ -189,26 +193,29 @@ class FNTCommandAPI:
         payload = {**attributes}
         params = {"sessionId": self.session_id}
         if not entity_custom:
-            method = f'entity/{entity_type}/create'
+            method = f"entity/{entity_type}/create"
         else:
-            method = f'entity/custom/{entity_type}/create'
+            method = f"entity/custom/{entity_type}/create"
 
         response = self.send_request(method=method, payload=payload, params=params)
         return response["returnData"]
 
-    def update_entity(self, entity_type, entity_elid, entity_custom=False, **attributes):
+    def update_entity(
+        self, entity_type, entity_elid, entity_custom=False, **attributes
+    ):
         payload = {**attributes}
         params = {"sessionId": self.session_id}
         if not entity_custom:
-            method = f'entity/{entity_type}/{entity_elid}/update'
+            method = f"entity/{entity_type}/{entity_elid}/update"
         else:
-            method = f'entity/{entity_type}/{entity_elid}/update'
+            method = f"entity/{entity_type}/{entity_elid}/update"
 
         response = self.send_request(method=method, payload=payload, params=params)
         return response["returnData"]
 
 
 @measure(operation=sum)
+@deflogger
 def get_vpoller_vms(vpoller):
     vpoller_resp = vpoller.run(
         method="vm.discover", vc_host=config["vpoller"]["vc_host"]
@@ -248,9 +255,27 @@ def get_vpoller_vms(vpoller):
 
 
 @measure(operation=sum)
+@deflogger
 def get_fnt_virtual_servers(command):
+    FNT_VS_ATTRIBUTES = [
+        "id",
+        "visibleId",
+        "elid",
+        "cCpu",
+        "cRam",
+        "cManagementInterface",
+        "cCommunityName",
+        "cSdiNewServer",
+        "cSdiIpChanged",
+        "cSdiMonitoring",
+        "cSdiDeleted",
+        "remark",  # dev #todo
+    ]
+
+    FNT_VS_FILTER = {"remark": {"operator": "like", "value": "*-*-*-*-*"}}
+
     virtualservers = command.get_entities(
-        "virtualServer", attributes=fnt_vs_attributes, restrictions=FNT_VS_FILTER
+        "virtualServer", attributes=FNT_VS_ATTRIBUTES, restrictions=FNT_VS_FILTER
     )
     virtualservers_indexed = {vs["remark"]: vs for vs in virtualservers}
     for vs in virtualservers:
@@ -263,6 +288,7 @@ def get_fnt_virtual_servers(command):
 
 
 @measure(operation=sum)
+@deflogger
 def get_zabbix_hosts(zapi):
     hosts = zapi.host.get(
         output=["name", "host"],
@@ -273,74 +299,22 @@ def get_zabbix_hosts(zapi):
     return hosts, hosts_indexed_by_host
 
 
+@deflogger
 def get_hostgroupid_by_name(zapi, name):
     return int(zapi.hostgroup.get(filter={"name": name})[0]["groupid"])
 
 
+@deflogger
 def get_templateid_by_name(zapi, name):
     return int(zapi.template.get(filter={"host": name})[0]["templateid"])
 
 
-# def main():
+@measure
+@deflogger
+def run_vpoller_fnt_sync():
 
-# Initiate vPoller
-vpoller = vPollerAPI(vpoller_endpoint=config["vpoller"]["endpoint"])
-#vpoller.run(method='about',vc_host=config["vpoller"]["vc_host"])
-
-# Initiate FNT API
-try:
-    command = FNTCommandAPI(
-        url=config["command"]["url"],
-        username=config["command"]["username"],
-        password=config["command"]["password"],
-    )
-except FNTNotAuthorized:
-    logger.error("FNT Command authorization failed.")
-    sys.exit(3)
-
-
-# Initiate ZabbixAPI
-try:
-    zapi = ZabbixAPI(
-        url=config["zabbix"]["url"],
-        user=config["zabbix"]["username"],
-        password=config["zabbix"]["password"],
-    )
-    zapi.session.verify = False
-except ZabbixAPIException as e:
-    logger.error("Zabbix authorization failed.")
-    sys.exit(3)
-
-zabbix_hostgroup_id = get_hostgroupid_by_name(zapi, config["zabbix"]["hostgroup"])
-zabbix_template_id = get_templateid_by_name(zapi, config["zabbix"]["template"])
-
-
-# Main code
-LOOP = 1
-i = 1 if LOOP != -1 else -1
-
-
-while i <= LOOP:
-
-    # vPoller -> FNT
     vpoller_vms, vpoller_vms_indexed = get_vpoller_vms(vpoller)
-
-    # FNT
-
-    fnt_vs_attributes = [
-        "id",
-        "visibleId",
-        "elid",
-        "cCpu",
-        "cRam",
-        "cManagementInterface",
-        "cCommunityName",
-        "cSdiNewServer",
-        "cSdiIpChanged",
-        "cSdiMonitoring",
-        "cSdiDeleted",
-        "remark",  # #dev only
-    ]
+    fnt_virtualservers, fnt_virtualservers_indexed = get_fnt_virtual_servers(command)
 
     transform_map_vpoller_fnt = [
         ("config.instanceUuid", "remark"),
@@ -351,20 +325,11 @@ while i <= LOOP:
         #    ("ipAddress", "ipAddress"),
     ]
 
-    transform_map_fnt_zabbix = [
-        ("id", "host"),
-        ("visibleId", "name"),
-        # ("cManagementInterface", zbx_old_hosts[alias]["interfaces"][0]["ip"]),
-        ("cCommunityName", "{$SNMP_COMMUNITY}"),
-    ]
-
-    FNT_VS_FILTER = {"remark": {"operator": "like", "value": "*-*-*-*-*"}}
-
-    fnt_virtualservers, fnt_virtualservers_indexed = get_fnt_virtual_servers(command)
-
-    vs_update_set = []
+    #vs_update_set = []  #todo
+    # create/update vs
     for vm in vpoller_vms:
         vm_uuid = vm["config.instanceUuid"]
+        # search for vs existence
         vs_current = fnt_virtualservers_indexed.get(vm_uuid, {})
         vs_attributes = {}
         # compare attributes
@@ -373,40 +338,60 @@ while i <= LOOP:
             vm_attr = tm_entry[0]
             if vm[vm_attr] != vs_current.get(vs_attr):
                 vs_attributes[vs_attr] = vm[vm_attr]
-            if vm["ipAddress"] and vm["ipAddress"][0] != vs_current.get("cManagementInterface"):
-                vs_attributes["cManagementInterface"] = vm["ipAddress"][0]  # #dev only                
-                vs_attributes["cSdiIpChanged"] = 'Y'
+            if vm["ipAddress"] and vm["ipAddress"][0] != vs_current.get(
+                "cManagementInterface"
+            ):
+                vs_attributes["cManagementInterface"] = vm["ipAddress"][0]  # #dev only
+                vs_attributes["cSdiIpChanged"] = "Y"
+        # do we have attributes to create/update
         if vs_attributes:
             # vs_update_set.append(vs_attributes)
             try:
                 if not vs_current:
-                    command.create_entity(entity_type="virtualServer", **vs_attributes, cSdiNewServer="Y")
-                    logger.info(f'Created VirtualServer {vs_attributes["visibleId"]}')
-                    logger.debug(f'Attributes: {vs_attributes}')
+                    command.create_entity(
+                        entity_type="virtualServer", **vs_attributes, cSdiNewServer="Y"
+                    )
+                    logger.info(f'Created VirtualServer {vs_attributes["visibleId"]}.')
                 else:
-                    command.update_entity(entity_type="virtualServer", entity_elid=vs_current['elid'], **vs_attributes)
-                    logger.info(f'Updated VirtualServer {vs_current["visibleId"]}')
-                    logger.debug(f'Attributes: {vs_attributes}')
+                    command.update_entity(
+                        entity_type="virtualServer",
+                        entity_elid=vs_current["elid"],
+                        **vs_attributes,
+                    )
+                    logger.info(f'Updated VirtualServer {vs_current["visibleId"]}.')
+                logger.debug(f"Attributes: {vs_attributes}")
             except:
-                logger.error(f"Failed to create/update VirtualServer: {vs_attributes}")
-    
+                logger.error(f"Failed to create/update VirtualServer: {vs_attributes}.")
+
     # for vs_attributes in vs_update_set:
-    # mark deleted vss
+
+    # mark deleted vms
     for vs in fnt_virtualservers:
-        vs_uuid = vs["remark"] # #dev
-        if not vpoller_vms_indexed.get(vs_uuid) and vs['cSdiDeleted'] != 'Y':
+        vs_uuid = vs["remark"]  # #dev
+        if not vpoller_vms_indexed.get(vs_uuid) and vs["cSdiDeleted"] != "Y":
+            vs_attributes = {"cSdiDeleted": "Y"}
             try:
-                vs_attributes = {"cSdiDeleted": "Y"}
-                command.update_entity(entity_type="virtualServer", entity_elid=vs['elid'], **vs_attributes)
-                logger.info(f'Updated VirtualServer {vs["visibleId"]}')
-                logger.debug(f'Attributes: {vs_attributes}')
+                command.update_entity(
+                    entity_type="virtualServer", entity_elid=vs["elid"], **vs_attributes
+                )
             except:
-                logger.error(f"Failed to create/update VirtualServer: {vs_attributes}")
+                logger.error(f"Failed to create/update VirtualServer: {vs_attributes}.")
+            else:
+                logger.info(f'Updated VirtualServer {vs["visibleId"]}.')
+                logger.debug(f"Attributes: {vs_attributes}")
 
-    # FNT -> Zabbix
-    # Get  hosts
+@measure
+@deflogger
+def run_fnt_zabbix_sync():
+
+    transform_map_fnt_zabbix = [
+        ("id", "host"),
+        ("visibleId", "name"),
+        # ("cManagementInterface", zbx_old_hosts[alias]["interfaces"][0]["ip"]),
+        ("cCommunityName", "{$SNMP_COMMUNITY}"),
+    ]
+
     zabbix_hosts, zabbix_hosts_indexed_by_host = get_zabbix_hosts(zapi)
-
     fnt_virtualservers, fnt_virtualservers_indexed = get_fnt_virtual_servers(command)
 
     for vs in fnt_virtualservers:
@@ -432,19 +417,83 @@ while i <= LOOP:
                 )
         except Exception as e:
             logger.exception(e)
+        else:
+            logger.info(f'Updated Zabbix host {vs["visibleId"]}.')
 
-    if DEBUG:
-        logger.debug(f"Loop {i}.")
 
-    sleep_time = 0.01
-    for c in range(0, 1000):
-        if killer.kill_now:
-            logger.info("Stopping..")
-            sys.exit(1)
-        if LOOP != 1:
+# def main():
+
+# Initiate vPoller
+try:
+    vpoller = vPollerAPI(vpoller_endpoint=config["vpoller"]["endpoint"])
+    vpoller.run(method="about", vc_host=config["vpoller"]["vc_host"])
+except Exception:
+    logger.exception("vPoller authorization failed.")
+    sys.exit(3)
+
+# Initiate FNT API
+try:
+    command = FNTCommandAPI(
+        url=config["command"]["url"],
+        username=config["command"]["username"],
+        password=config["command"]["password"],
+    )
+except FNTNotAuthorized:
+    logger.exception("FNT Command authorization failed.")
+    sys.exit(3)
+
+# Initiate ZabbixAPI
+try:
+    zapi = ZabbixAPI(
+        url=config["zabbix"]["url"],
+        user=config["zabbix"]["username"],
+        password=config["zabbix"]["password"],
+    )
+    zapi.session.verify = False
+    zabbix_hostgroup_id = get_hostgroupid_by_name(zapi, config["zabbix"]["hostgroup"])
+    zabbix_template_id = get_templateid_by_name(zapi, config["zabbix"]["template"])
+
+except ZabbixAPIException:
+    logger.exception("Zabbix authorization failed.")
+    sys.exit(3)
+
+
+# Main code
+LOOPS = config["general"]["loops"]
+INTERVAL = config["general"]["interval"]
+i = 1
+
+while i <= LOOPS or LOOPS == -1:
+    start_time = datetime.now()
+    logger.debug(f"Loop {i}.")
+    #%%
+    # vPoller -> FNT
+    run_vpoller_fnt_sync()
+
+    #%%
+    # FNT -> Zabbix
+    run_fnt_zabbix_sync()
+
+    #%%
+    if LOOPS != 1:
+        stop_time = datetime.now()
+        load_time = (stop_time - start_time).total_seconds()
+        sleep_time_total = INTERVAL - load_time
+        sleep_time_approx = 1  # seconds
+        sleep_cycles = math.floor(sleep_time_total / sleep_time_approx)
+        # forced sleep to allow for interrupting
+        if sleep_cycles > 0:
+            sleep_time = sleep_time_total / sleep_cycles
+        else:
+            sleep_cycles = sleep_time = 1
+        logger.debug(f"{load_time=}, {sleep_cycles=}, {sleep_time=}")
+
+        for c in range(0, sleep_cycles):
+            if killer.kill_now:
+                logger.info("Stopping..")
+                sys.exit(1)
             time.sleep(sleep_time)
-    if LOOP != -1:
-        i += 1
+    i += 1
 
     # debug_toolkit.crash_me()
     # break

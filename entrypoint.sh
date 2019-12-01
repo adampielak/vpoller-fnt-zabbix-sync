@@ -6,9 +6,13 @@ if [ "${DEBUG_MODE}" == "true" ]; then
     set -o xtrace
 fi
 
-cd /app
+cd /app/vfz_sync
 
 DEFAULT_CONFIG=$(cat <<-END
+general:
+  debug: true
+  dryrun: false
+
 vpoller:
   endpoint: ${VPOLLER_ENDPOINT}
   vc_host: ${VPOLLER_VC_HOST}
@@ -23,12 +27,45 @@ command:
   username: ${COMMAND_USERNAME}
   password: ${COMMAND_PASSWORD}
 
+logging:
+  version: 1
+  formatters:
+    simple:
+      format: '%(asctime)s:%(name)s:%(levelname)s:%(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stderr
+    file:
+      class: logging.FileHandler
+      level: ERROR
+      formatter: simple
+      filename: <defined_in_code.log>
+  loggers:
+    vfz_sync:
+      level: DEBUG
+      handlers: [console, file]
+      propagate: no
+    pyzabbix:
+      level: INFO
+      handlers: [console, file]
+      propagate: no
+    requests.packages.urllib3:
+      level: WARN
+      handlers: [console, file]
+      propagate: yes
+  root:
+    level: WARN
+    handlers: [console, file]
+
 END
 )
-if [ ! -f ./vzbx-sync.yaml ]; then
-    echo "$DEFAULT_CONFIG" > ./vzbx-sync.yaml
+if [ ! -f ./vfz_sync.yaml ]; then
+    echo "$DEFAULT_CONFIG" > ./vfz_sync.yaml
 fi
 
-exec python ./vzbx-sync.py
+exec python ./vfz_sync.py
 
 #bash
