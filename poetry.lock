@@ -127,6 +127,17 @@ python-versions = "*"
 version = "0.6.2"
 
 [[package]]
+category = "main"
+description = "provide --dry-run functionality for your application"
+name = "dryable"
+optional = false
+python-versions = "*"
+version = "1.0.3"
+
+[package.extras]
+testing = ["pytest"]
+
+[[package]]
 category = "dev"
 description = "Discover and load entry points from installed packages."
 name = "entrypoints"
@@ -899,7 +910,7 @@ version = "3.5.1"
 notebook = ">=4.4.1"
 
 [metadata]
-content-hash = "956c31154196a9884f5381301042a06fce7aae474ca905d5be27bd8a4b06d5b7"
+content-hash = "4a07b9db4d6611f8d6c6470d17d454e54d4d54e6d8038d1e1c6d169d81ff3d38"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -953,6 +964,9 @@ defusedxml = [
 ]
 docopt = [
     {file = "docopt-0.6.2.tar.gz", hash = "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"},
+]
+dryable = [
+    {file = "dryable-1.0.3-py3-none-any.whl", hash = "sha256:e5678bd1a79f86a54b89c454a3349ec5ec36c8553d3a1c1c3999f9787ff98e48"},
 ]
 entrypoints = [
     {file = "entrypoints-0.3-py2.py3-none-any.whl", hash = "sha256:589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19"},

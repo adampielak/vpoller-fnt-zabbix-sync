@@ -1,7 +1,7 @@
 version: '3.5'
 services:
  vfz_sync:
-  image: djettah/vfz_sync:test
+  image: djettah/vfz_sync:latest
   #build: .
   env_file:
    - .env_vfz_sync

@@ -2,35 +2,21 @@
 
 import json
 from functools import wraps
-from time import time
+from time import time, sleep
 import os
 import sys
 import logging
 import fcntl
 from datetime import datetime
 import signal
+from math import floor
 
-delays = {}
-
-START_TIME = datetime.now()
-
-TRACE = False
-DRYRUN = False
-DEBUG = False
 
 # Logging
-MAIN_PATH_NOEXT = os.path.splitext(sys.modules["__main__"].__file__)[0]
-MAIN_NAME = os.path.splitext(os.path.basename(sys.modules["__main__"].__file__))[0]
-LOG_SUFFIX = ".log"
-if DRYRUN:
-    LOG_SUFFIX = "_DRYRUN.log"
-if DEBUG:
-    LOG_SUFFIX = "_DEBUG.log"
-if DRYRUN and DEBUG:
-    LOG_SUFFIX = "_DRYDEBUG.log"
-LOG_FILE = MAIN_PATH_NOEXT + LOG_SUFFIX
-
-logger = logging.getLogger(MAIN_NAME)
+def init_logger():
+    MAIN_NAME = os.path.splitext(os.path.basename(sys.modules["__main__"].__file__))[0]
+    logger = logging.getLogger(MAIN_NAME)
+    return logger
 
 
 class KillHandler:
@@ -66,8 +52,8 @@ def prettyprint_request(req):
     At this point it is completely built and ready
     to be fired; it is "prepared".
 
-    However pay attention at the formatting used in 
-    this function because it is programmed to be pretty 
+    However pay attention at the formatting used in
+    this function because it is programmed to be pretty
     printed and may differ from the actual request.
     """
     print(
@@ -129,7 +115,7 @@ def run_once(main):
     try:
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return True
-    except:
+    except BlockingIOError:
         return False
 
 
@@ -150,3 +136,39 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 def crash_me():
     print(2 / 0)
+
+
+def killer_sleep(start_time, period, killer):
+    stop_time = datetime.now()
+    load_time = (stop_time - start_time).total_seconds()
+    sleep_time_total = period - load_time
+    sleep_time_approx = 1  # seconds
+    sleep_cycles = floor(sleep_time_total / sleep_time_approx)
+    # forced sleep to allow for interrupting
+    if sleep_cycles > 0:
+        sleep_time = sleep_time_total / sleep_cycles
+    else:
+        sleep_cycles = sleep_time = 1
+    #logger.debug(f"{load_time=}, {sleep_cycles=}, {sleep_time=}")
+
+    for c in range(0, sleep_cycles):
+        if killer.kill_now:
+            logger.info("Stopping..")
+            
+            sys.exit(1)
+            # try:
+            #     sys.exit(1)
+            # except SystemExit:  # vscode debug quickfix
+            #     pass
+        sleep(sleep_time)
+
+
+delays = {}
+
+START_TIME = datetime.now()
+
+TRACE = False
+DRYRUN = False
+DEBUG = False
+
+logger = init_logger()

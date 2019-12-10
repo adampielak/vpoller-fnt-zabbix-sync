@@ -24,6 +24,8 @@ zabbix:
   url: ${ZABBIX_URL}
   username: ${ZABBIX_USERNAME}
   password: ${ZABBIX_PASSWORD}
+  hostgroup: ${ZABBIX_HOSTGROUP}
+  template: ${ZABBIX_TEMPLATE}
 
 command:
   url: ${COMMAND_URL}
