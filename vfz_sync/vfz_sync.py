@@ -17,7 +17,7 @@ from fntapi import *
 from vpollerapi import *
 from zapi import *
 from pyzabbix.api import ZabbixAPI, ZabbixAPIException
-from time import gmtime, strftime
+from time import gmtime, strftime, localtime
 from dateutil import parser
 from pprint import pprint  # #dev
 import debugtoolkit as debugtoolkit
@@ -102,7 +102,6 @@ def datetime_to_local_timezone(dt):
     epoch = dt.timestamp() # Get POSIX timestamp of the specified datetime.
     st_time = time.localtime(epoch) #  Get struct_time for the timestamp. This will be created using the system's locale and it's time zone information.
     tz = datetime.timezone(datetime.timedelta(seconds = st_time.tm_gmtoff)) # Create a timezone object with the computed offset in the struct_time.
-
     return dt.astimezone(tz) # Move the datetime instance to the new time zone.
 
 
@@ -213,7 +212,7 @@ def sync_fnt_vs(command, vpoller_vms, fnt_virtualservers_indexed):
         if m := re.match(r".*Time: \[(\d\d\.\d\d\.\d\d\d\d .*?)\].*", vm_annotation):    # noqa
             last_backup = m.group(1)
             last_backup = re.sub(
-                r"(\d{2})\.(\d{2})\.(\d{4}) (\d{2}:\d{2}:\d{2})", f'\\3-\\2-\\1T\\4{(strftime("%z", gmtime()))}', last_backup
+                r"(\d{2})\.(\d{2})\.(\d{4}) (\d{2}:\d{2}:\d{2})", f'\\3-\\2-\\1T\\4{(strftime("%z", localtime()))}', last_backup
             )
             vm["last_backup"] = last_backup
             if vs.get('cSdiLastBackup'):
