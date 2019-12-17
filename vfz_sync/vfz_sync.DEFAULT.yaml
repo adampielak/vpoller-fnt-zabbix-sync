@@ -1,26 +1,27 @@
 general:
-  debug: true
-  dryrun: true
+  debug: false
+  dryrun: false
   trace: false
-  interval: 10
+  interval: 600
   loops: -1
 
 vpoller:
-  endpoint: tcp://10.10.15.2:8080
-  vc_host: vzbx-vc01
+  endpoint: tcp://address:port
+  vc_host: address
 
 zabbix:
-  url: https://10.10.15.2
-  username: Admin
-  password: zabbix
+  url: https://address
+  username: username
+  password: password
   hostgroup: FNT Command
   template: Template FNT Virtual Server
   proxy: zabbix-proxy-sqlite3
 
+
 command:
-  url: http://10.10.15.100:8080
-  username: do
-  password: JcW8p43M7xSR6b
+  url: http://address:port
+  username: username
+  password: password
 
 logging:
   version: 1

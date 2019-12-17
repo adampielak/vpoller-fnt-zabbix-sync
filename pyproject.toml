@@ -10,6 +10,7 @@ py-zabbix = "^1.1"
 vpoller = "^0.7.3"
 PyYAML = "^5.1"
 dryable = "^1.0.3"
+python-dateutil = "^2.8.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^1.2"
@@ -20,5 +21,5 @@ rope = "^0.14.0"
 black = "^19.10b0"
 
 [build-system]
-requires = ["poetry>=1.0.0b8"]
+requires = ["poetry>=1.0.0"]
 build-backend = "poetry.masonry.api"

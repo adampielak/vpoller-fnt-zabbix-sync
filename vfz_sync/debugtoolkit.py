@@ -93,7 +93,7 @@ def measure(operation=sum):
             key = func.__module__ + "." + func.__name__
             delays[key] = operation((ttr, delays.get(key, 0)))
             if TRACE:
-                print(
+                logger.debug(
                     "[@measure({0})] {1} took: {2:.2f} s".format(
                         operation.__name__, key, ttr
                     )
@@ -103,9 +103,6 @@ def measure(operation=sum):
         return wrapper
 
     return decorator
-
-
-fh = 0
 
 
 def run_once(main):
@@ -124,6 +121,7 @@ def get_uptime():
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
+    """ # add sys.excepthook = handle_exception to main.py"""
     if issubclass(exc_type, KeyboardInterrupt):
         logger.warning("Interrupted.")
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -134,15 +132,47 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     sys.exit(255)
 
 
+def debug_exception(type, value, tb):
+    """ # add sys.excepthook = debug_exception to main.py"""
+    if hasattr(sys, 'ps1') or not sys.stderr.isatty():
+        # we are in interactive mode or we don't have a tty-like
+        # device, so we call the default hook
+        sys.__excepthook__(type, value, tb)
+    else:
+        import traceback, pdb
+        # we are NOT in interactive mode, print the exception...
+        traceback.print_exception(type, value, tb)
+        print
+        # ...then start the debugger in post-mortem mode.
+        pdb.post_mortem(tb)
+
+
 def crash_me():
     print(2 / 0)
 
 
-def killer_sleep(start_time, period, killer):
+def killer_loop(killer, loops, period, exit):
+    i = 0
+    while (i := i + 1) and (i <= loops or loops == -1):
+        loop_start_time = datetime.now()
+        if DEBUG:
+            logger.debug(f"Loop {i}.")
+
+        # main executes here
+        yield i
+
+        # loop_end_time = datetime.now()
+        if TRACE:
+            logger.debug(f"Loop {i} ended, sleeping..")
+        if loops != 1:
+            killer_sleep(killer=killer, start_time=loop_start_time, period=period, exit=exit)
+
+
+def killer_sleep(killer, start_time, period, exit):
     stop_time = datetime.now()
     load_time = (stop_time - start_time).total_seconds()
     sleep_time_total = period - load_time
-    sleep_time_approx = 1  # seconds
+    sleep_time_approx = 0.3  # seconds
     sleep_cycles = floor(sleep_time_total / sleep_time_approx)
     # forced sleep to allow for interrupting
     if sleep_cycles > 0:
@@ -154,14 +184,12 @@ def killer_sleep(start_time, period, killer):
     for c in range(0, sleep_cycles):
         if killer.kill_now:
             logger.info("Stopping..")
-            
-            sys.exit(1)
-            # try:
-            #     sys.exit(1)
-            # except SystemExit:  # vscode debug quickfix
-            #     pass
+            if exit:
+                sys.exit(1)
         sleep(sleep_time)
 
+
+fh = 0
 
 delays = {}
 

@@ -26,6 +26,7 @@ zabbix:
   password: ${ZABBIX_PASSWORD}
   hostgroup: ${ZABBIX_HOSTGROUP}
   template: ${ZABBIX_TEMPLATE}
+  proxy: ${ZABBIX_PROXY}
 
 command:
   url: ${COMMAND_URL}

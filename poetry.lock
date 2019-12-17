@@ -630,7 +630,7 @@ version = "0.15.6"
 six = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Extensions to the standard Python datetime module"
 name = "python-dateutil"
 optional = false
@@ -910,7 +910,7 @@ version = "3.5.1"
 notebook = ">=4.4.1"
 
 [metadata]
-content-hash = "4a07b9db4d6611f8d6c6470d17d454e54d4d54e6d8038d1e1c6d169d81ff3d38"
+content-hash = "dac0d76651bfb1121a39bd369b7d4dc5efab423376afd3df5156a750ac589f18"
 python-versions = "^3.8"
 
 [metadata.files]
