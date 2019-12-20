@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>{% block title %}{% endblock %}</title>
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='site.css') }}"  />
+        {% block scripts %}{% endblock %}
+    </head>
+
+    <body>
+        <div class="navbar">
+            <a href="{{ url_for('sync') }}" class="navbar-brand">Sync</a>
+        </div>
+
+        <div class="body-content">
+            {% block content %}
+            {% endblock %}
+            <hr/>
+            <footer>
+                <p>&copy; 2019</p>
+            </footer>
+        </div>
+    </body>
+</html>

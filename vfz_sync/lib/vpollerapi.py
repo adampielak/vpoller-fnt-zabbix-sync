@@ -1,11 +1,8 @@
-from debugtoolkit import (
-    deflogger,
-    dry_request,
-    measure,
-    init_logger
-)
-from vpoller.client import VPollerClient
 import json
+
+from vpoller.client import VPollerClient
+
+from .debugtoolkit import deflogger, dry_request, init_logger, measure
 
 
 class vPollerAPI:

@@ -1,9 +1,9 @@
 general:
   debug: true
-  dryrun: true
-  trace: false
+  dryrun: false
+  trace: true
   interval: 10
-  loops: -1
+  loops: 1
 
 vpoller:
   endpoint: tcp://10.10.15.2:8080
@@ -51,6 +51,11 @@ logging:
       level: WARN
       handlers: [console, file]
       propagate: yes
+    test_flask:
+      level: DEBUG
+      handlers: [console, file]
+      propagate: no
+
   root:
     level: WARN
     handlers: [console, file]

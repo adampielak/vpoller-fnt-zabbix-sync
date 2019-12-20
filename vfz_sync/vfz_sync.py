@@ -1,34 +1,28 @@
 #!/usr/bin/env python3
 #%%
 # sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
-import sys
-import os
+import atexit
+import datetime
 import json
 import logging
 import logging.config
-import requests
-import re
-import yaml
-import time
-import atexit
 import math
-import datetime
-from fntapi import *
-from vpollerapi import *
-from zapi import *
-from pyzabbix.api import ZabbixAPI, ZabbixAPIException
-from time import gmtime, strftime, localtime
+import os
+import re
+import sys
+import time
+# from pprint import pprint  # #dev
+
+import yaml
 from dateutil import parser
-from pprint import pprint  # #dev
-import debugtoolkit as debugtoolkit
-from debugtoolkit import (
-    deflogger,
-    dry_request,
-    measure,
-    handle_exception,
-    debug_exception,
-    crash_me,
-)
+from pyzabbix.api import ZabbixAPI, ZabbixAPIException
+
+import lib.debugtoolkit as debugtoolkit
+from lib.debugtoolkit import (crash_me, debug_exception, deflogger, dry_request,
+                          handle_exception, measure)
+from lib.fntapi import *
+from lib.vpollerapi import *
+from lib.zapi import *
 
 # import dryable
 # import http.client
@@ -63,7 +57,7 @@ def init_logging():
         LOG_SUFFIX = "_DEBUG.log"
     if DRYRUN and DEBUG:
         LOG_SUFFIX = "_DRYDEBUG.log"
-    LOG_FILE = PATH_NOEXT + LOG_SUFFIX
+    LOG_FILE = f"{PATH}/log/{NAME_NOEXT}{LOG_SUFFIX}"
 
     config_logging = config["logging"]
     config_logging["handlers"]["file"]["filename"] = LOG_FILE
@@ -212,7 +206,7 @@ def sync_fnt_vs(command, vpoller_vms, fnt_virtualservers_indexed):
         if m := re.match(r".*Time: \[(\d\d\.\d\d\.\d\d\d\d .*?)\].*", vm_annotation):    # noqa
             last_backup = m.group(1)
             last_backup = re.sub(
-                r"(\d{2})\.(\d{2})\.(\d{4}) (\d{2}:\d{2}:\d{2})", f'\\3-\\2-\\1T\\4{(strftime("%z", localtime()))}', last_backup
+                r"(\d{2})\.(\d{2})\.(\d{4}) (\d{2}:\d{2}:\d{2})", f'\\3-\\2-\\1T\\4{(time.strftime("%z", time.localtime()))}', last_backup
             )
             vm["last_backup"] = last_backup
             if vs.get('cSdiLastBackup'):
@@ -567,9 +561,9 @@ def cleanup_zabbix_hosts(zapi, zabbix_hosts, fnt_virtualservers_indexed):
     for host in zabbix_hosts:
         host_id = host["hostid"]
         # host["host"] not in fnt_virtualservers_indexed
-        if fnt_virtualservers_indexed and yes_no(
-            fnt_virtualservers_indexed.get(host["host"], {}).get("cSdiDeleted", "N")
-        ):
+        vs = fnt_virtualservers_indexed.get(host["host"], {})
+        # don't delete if no data from FNT
+        if fnt_virtualservers_indexed and (yes_no(vs.get("cSdiDeleted", "N")) or not vs):
             try:
                 zapi.host.delete(host_id)
             except ZabbixAPIException:
@@ -604,9 +598,11 @@ def run_fnt_zabbix_sync(command, zapi):
 
 #%%
 # Read config file
+PATH = os.path.dirname(__file__)
 PATH_NOEXT = os.path.splitext(__file__)[0]
 NAME_NOEXT = os.path.splitext(os.path.basename(__file__))[0]
-CONFIG_PATH = f"{PATH_NOEXT}.yaml"
+# CONFIG_PATH = f"{PATH_NOEXT}.yaml"
+CONFIG_PATH = f"{PATH}/config/{NAME_NOEXT}.yaml"
 with open(CONFIG_PATH, mode="r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
@@ -616,11 +612,6 @@ DEBUG = debugtoolkit.DEBUG = config["general"]["debug"]
 TRACE = debugtoolkit.TRACE = config["general"]["trace"]
 DRYRUN = debugtoolkit.DRYRUN = config["general"]["dryrun"]
 # dryable.set(False)
-
-sys.excepthook = handle_exception
-killer = debugtoolkit.KillHandler()
-atexit.register(exit_process)
-stats = {}
 
 
 # Logging
@@ -750,15 +741,40 @@ def init_apis():
 
 
 def main():
+
     # debugtoolkit.crash_me()
     vpoller, command, zapi = init_apis()
 
     for i in debugtoolkit.killer_loop(killer, config["general"]["loops"], config["general"]["interval"], exit=True):
         # vPoller -> FNT
         run_vpoller_fnt_sync(vpoller, command)
+
         # FNT -> Zabbix
         run_fnt_zabbix_sync(command, zapi)
 
 
+def flask_main():
+    try:
+        # debugtoolkit.crash_me()
+        from random import random
+        if random() > 0.5:
+            vpoller, command, zapi = init_apis()
+
+        # vPoller -> FNT
+        run_vpoller_fnt_sync(vpoller, command)
+
+        # FNT -> Zabbix
+        run_fnt_zabbix_sync(command, zapi)
+    except Exception:
+        time.sleep(2)
+        return "failed"
+
+    else:
+        return "done"
+
+
 if __name__ == "__main__":
+    sys.excepthook = handle_exception
+    atexit.register(exit_process)
+    killer = debugtoolkit.KillHandler()
     main()

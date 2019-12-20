@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-import json
-from functools import wraps
-from time import time, sleep
-import os
-import sys
-import logging
 import fcntl
-from datetime import datetime
+import json
+import logging
+import os
 import signal
+import sys
+from datetime import datetime
+from functools import wraps
 from math import floor
+from time import sleep, time
 
 
 # Logging

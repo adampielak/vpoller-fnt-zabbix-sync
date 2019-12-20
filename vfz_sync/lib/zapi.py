@@ -1,9 +1,4 @@
-from debugtoolkit import (
-    deflogger,
-    dry_request,
-    measure,
-    init_logger
-)
+from .debugtoolkit import deflogger, dry_request, init_logger, measure
 
 
 @measure(operation=sum)

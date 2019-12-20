@@ -1,14 +1,9 @@
+import json
+import sys
+
 import requests
 
-from debugtoolkit import (
-    deflogger,
-    dry_request,
-    measure,
-    init_logger
-
-)
-import sys
-import json
+from .debugtoolkit import deflogger, dry_request, init_logger, measure
 
 
 class FNTNotAuthorized(Exception):

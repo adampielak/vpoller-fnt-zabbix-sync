@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block title %}
+VFZ Sync
+{% endblock %}
+{% block scripts %}
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type=text/javascript> $SCRIPT_ROOT={{ request.script_root|tojson|safe }}; </script>
+    <script type=text/javascript>
+      $(function() {
+        $('a#sync').bind('click', function() {
+          $('#result').attr('class', "")
+          $("#result").text("Syncing..");
+          $.getJSON($SCRIPT_ROOT + '/vfzsync', {
+          }, function(data) {
+            $("#result").text("Synchronization " + data.result);
+            if (data.result == 'done') {
+              $('#result').attr('class', "success");
+            } else {
+              $('#result').attr('class', "errorlist");
+            }
+          });
+          return false;
+        });
+      });
+    </script>
+{% endblock %}
+
+{% block content %}
+    <h1>VFZ Sync</h1>
+    <span id=result>Press Sync to start</span>
+    <p><a href=# id=sync>Sync</a>
+{% endblock %}

@@ -8,6 +8,14 @@ fi
 
 cd /app/vfz_sync
 
+if [ ! -d ./config ]; then
+    mkdir config
+fi
+
+if [ ! -d ./log ]; then
+    mkdir log
+fi
+
 DEFAULT_CONFIG=$(cat <<-END
 general:
   debug: ${GENERAL_DEBUG}
@@ -68,8 +76,8 @@ logging:
 
 END
 )
-if [ ! -f ./vfz_sync.yaml ]; then
-    echo "$DEFAULT_CONFIG" > ./vfz_sync.yaml
+if [ ! -f ./config/vfz_sync.yaml ]; then
+    echo "$DEFAULT_CONFIG" > ./config/vfz_sync.yaml
 fi
 
 exec python ./vfz_sync.py
