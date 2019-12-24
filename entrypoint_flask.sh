@@ -62,14 +62,6 @@ logging:
       level: DEBUG
       handlers: [console, file]
       propagate: no
-    __main__:
-      level: DEBUG
-      handlers: [console, file]
-      propagate: no
-    vfzlib:
-      level: DEBUG
-      handlers: [console, file]
-      propagate: no
     pyzabbix:
       level: INFO
       handlers: [console, file]
@@ -78,7 +70,6 @@ logging:
       level: WARN
       handlers: [console, file]
       propagate: yes
-
   root:
     level: WARN
     handlers: [console, file]
@@ -89,25 +80,8 @@ if [ ! -f ./config/vfzsync.yaml ]; then
     echo "$DEFAULT_CONFIG" > ./config/vfzsync.yaml
 fi
 
-MODE=$1
-ENV=$2
+# export FLASK_APP=vfz_webapp.py
+# exec python -m flask run --host=0.0.0.0
+exec gunicorn -b :5000 --access-logfile - --error-logfile - vfz_webapp:app
 
-echo Staring in ${MODE} mode, env ${ENV}
-
-if [ ${MODE} == 'web' ]; then
-  if [ ${ENV} == 'prod' ]; then
-    exec gunicorn -b :5000 --access-logfile - --error-logfile - vfz_webapp:app
-  fi
-  if [ ${ENV} == 'dev' ]; then
-    export FLASK_APP=vfz_webapp.py
-    exec python -m flask run --host=0.0.0.0
-  fi
-fi
-
-if [ ${MODE} == 'script' ]; then
-  exec python -m vfzsync
-fi
-
-if [ ${MODE} == 'debug' ]; then
-  while true; do sleep 60; done
-fi
+#bash

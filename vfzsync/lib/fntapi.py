@@ -15,14 +15,14 @@ class FNTException(Exception):
 
 
 class FNTCommandAPI:
-    @deflogger
+    #@deflogger
     def __init__(self, url, username, password):
         super().__init__()
         self.fnt_api_url = f"{url}/axis/api/rest"
         self.authorized = False
         self.auth(url, username, password)
 
-    @deflogger
+    #@deflogger
     def send_request(self, method, payload=None, headers=None, params=None, exit=True):
         fnt_api_endpoint = f"{self.fnt_api_url}/{method}"
         if not params and self.authorized:
@@ -49,7 +49,7 @@ class FNTCommandAPI:
             logger.error(f'Failed to send request for method "{method}": {response}')  # ["status"]}'
             raise FNTException(f"FNT Exception: {response.text}")
 
-    @deflogger
+    #@deflogger
     def auth(self, url, username, password):
         payload = {
             "user": username,
@@ -71,8 +71,8 @@ class FNTCommandAPI:
     #         logger.warning(f"Not authorized to execute {method} method")
     #         return False
 
-    @measure(operation=sum)
-    @deflogger
+    #@measure(operation=sum)
+    #@deflogger
     def get_entities(self, entity_type, entity_custom=False, restrictions={}, attributes=[]):
         if entity_custom:
             method = f"entity/custom/{entity_type}/query"
@@ -83,8 +83,8 @@ class FNTCommandAPI:
         response = self.send_request(method=method, payload=payload)
         return response["returnData"]
 
-    @measure(operation=sum)
-    @deflogger
+    #@measure(operation=sum)
+    #@deflogger
     def get_related_entities(self, entity_type, entity_elid, relation_type, restrictions={}, attributes=[]):
         method = f"entity/{entity_type}/{entity_elid}/{relation_type}"
         payload = {
@@ -96,7 +96,7 @@ class FNTCommandAPI:
         response = [entry for entry in response["returnData"]]
         return response
 
-    @deflogger
+    #@deflogger
     def create_entity(self, entity_type, entity_custom=False, **attributes):
         payload = {**attributes}
         if not entity_custom:
@@ -107,7 +107,7 @@ class FNTCommandAPI:
         response = self.send_request(method=method, payload=payload)
         return response["returnData"]
 
-    @deflogger
+    #@deflogger
     def update_entity(self, entity_type, entity_elid, entity_custom=False, **attributes):
         payload = {**attributes}
         if not entity_custom:
@@ -118,7 +118,7 @@ class FNTCommandAPI:
         response = self.send_request(method=method, payload=payload)
         return response["returnData"]
 
-    @deflogger
+    #@deflogger
     def delete_entity(self, entity_type, entity_elid, entity_custom=False):
         payload = {}
         if not entity_custom:
@@ -129,14 +129,14 @@ class FNTCommandAPI:
         response = self.send_request(method=method, payload=payload)
         return response["returnData"]
 
-    @deflogger
+    #@deflogger
     def create_related_entities(self, entity_type, entity_elid, relation_type, linked_elid):
         attributes = {f"createLink{relation_type}": [{"linkedElid": linked_elid}]}
         response = self.update_entity(entity_type=entity_type, entity_elid=entity_elid, **attributes)
         return response
 
-    # @dryable.Dryable()
-    @deflogger
+    # #@dryable.Dryable()
+    #@deflogger
     def delete_related_entities(self, entity_type, entity_elid, relation_type, link_elid):
         attributes = {f"deleteLink{relation_type}": [{"linkElid": link_elid}]}
         response = self.update_entity(entity_type=entity_type, entity_elid=entity_elid, **attributes)

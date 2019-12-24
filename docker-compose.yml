@@ -1,10 +1,10 @@
 version: '3.5'
 services:
- vfz_sync:
-  image: djettah/vfz_sync:latest
-  #build: .
+ vfzsync:
+  image: djettah/vfzsync:latest
+  restart: always
   volumes:
    - /etc/localtime:/etc/localtime:ro
-   - /etc/timezone:/etc/timezone:ro 
+#    - /etc/timezone:/etc/timezone:ro 
   env_file:
-   - .env_vfz_sync
+   - .env_vfzsync

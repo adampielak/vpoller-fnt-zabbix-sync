@@ -2,17 +2,18 @@ import json
 
 from vpoller.client import VPollerClient
 
-from .debugtoolkit import deflogger, dry_request, init_logger, measure
+from .debugtoolkit import deflogger, deflogger_class, init_logger
 
 
+@deflogger_class
 class vPollerAPI:
-    @deflogger
+    # @deflogger
     def __init__(self, vpoller_endpoint):
         super().__init__()
         self.client = VPollerClient(endpoint=vpoller_endpoint)
 
-    @measure(operation=sum)
-    @deflogger
+    # @measure(operation=sum)
+    # @deflogger
     def run(self, vc_host, method, name=None, key=None, properties=None):
         msg = {"method": method, "hostname": vc_host}
         for prop in ['name', 'properties', 'key']:

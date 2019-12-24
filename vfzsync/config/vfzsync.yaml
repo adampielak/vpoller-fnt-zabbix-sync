@@ -1,27 +1,26 @@
 general:
-  debug: false
-  dryrun: false
-  trace: false
-  interval: 600
-  loops: -1
+  debug: true
+  dryrun: true
+  trace: true
+  loops: 1
+  interval: 10
 
 vpoller:
-  endpoint: tcp://address:port
-  vc_host: address
+  endpoint: tcp://10.10.15.2:8080
+  vc_host: vzbx-vc01
 
 zabbix:
-  url: https://address
-  username: username
-  password: password
+  url: https://10.10.15.2
+  username: Admin
+  password: zabbix
   hostgroup: FNT Command
   template: Template FNT Virtual Server
   proxy: zabbix-proxy-sqlite3
 
-
 command:
-  url: http://address:port
-  username: username
-  password: password
+  url: http://10.10.15.100:8080
+  username: do
+  password: JcW8p43M7xSR6b
 
 logging:
   version: 1
@@ -40,7 +39,15 @@ logging:
       formatter: simple
       filename: <defined_in_code.log>
   loggers:
-    vfz_sync:
+    vfzsync:
+      level: DEBUG
+      handlers: [console, file]
+      propagate: no
+    __main__:
+      level: DEBUG
+      handlers: [console, file]
+      propagate: no
+    vfzlib:
       level: DEBUG
       handlers: [console, file]
       propagate: no
@@ -52,6 +59,7 @@ logging:
       level: WARN
       handlers: [console, file]
       propagate: yes
+
   root:
     level: WARN
     handlers: [console, file]

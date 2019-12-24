@@ -10,13 +10,13 @@ VFZ Sync
         $('a#sync').bind('click', function() {
           $('#result').attr('class', "")
           $("#result").text("Syncing..");
-          $.getJSON($SCRIPT_ROOT + '/vfzsync', {
+          $.getJSON($SCRIPT_ROOT + '/api/vfzsync', {
           }, function(data) {
             $("#result").text("Synchronization " + data.result);
             if (data.result == 'done') {
               $('#result').attr('class', "success");
             } else {
-              $('#result').attr('class', "errorlist");
+              $('#result').attr('class', "error");
             }
           });
           return false;

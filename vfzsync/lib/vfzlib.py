@@ -1,91 +1,108 @@
-#!/usr/bin/env python3
-#%%
-# sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
-import atexit
+
 import datetime
 import json
-import logging
-import logging.config
 import math
 import os
 import re
 import sys
 import time
-# from pprint import pprint  # #dev
 
-import yaml
 from dateutil import parser
 from pyzabbix.api import ZabbixAPI, ZabbixAPIException
 
-import lib.debugtoolkit as debugtoolkit
-from lib.debugtoolkit import (crash_me, debug_exception, deflogger, dry_request,
-                          handle_exception, measure)
-from lib.fntapi import *
-from lib.vpollerapi import *
-from lib.zapi import *
+import vfzsync
 
-# import dryable
-# import http.client
-# http.client.HTTPConnection.debuglevel = 1
-# from urllib3.exceptions import HTTPError as BaseHTTPError
+from .debugtoolkit import (init_logger, crash_me, debug_exception, deflogger,
+                           deflogger_module, dry_request, handle_exception,
+                           measure)
+from .extrafuncs import *
+from .fntapi import *
+from .vpollerapi import *
+from .zabbixapi import *
 
 
-@deflogger
-def exit_process():
-    # if "zapi" in globals():
-    #     zapi.user.logout()
-    # if "command" in globals():
-    #     pass
-    if TRACE:
-        logger.debug("DEBUG summary:")
-        if "stats" in globals() and stats:
-            logger.debug("[stats]\n", json.dumps(stats, indent=4, sort_keys=False))
-        logger.debug(f"[uptime] {debugtoolkit.get_uptime():.2f} s")
-        logger.debug("[@measure] summary:")
-        for dly in debugtoolkit.delays:
-            logger.debug(f"{dly}\t {debugtoolkit.delays[dly]:.2f} \ts")
+# globals
 
-    logger.info("Stopped.")
+VPOLLER_FNT_TRANSFORM_MAP = [
+    ("config.instanceUuid", "cUuid"),
+    ("name", "visibleId"),
+    ("config.hardware.numCPU", "cCpu"),
+    ("config.hardware.memoryMB", "cRam"),
+    ("runtime.powerState", "cSdiStatus"),
+    ("config.annotation", "remark"),
+    ("last_backup", "cSdiLastBackup"),
+    ("vc_host", "datasource"),
+]
+
+FNT_VS_LINKED_IP_TRANSFORM_MAP = [("ipAddress", "ipAddress")]
+FNT_VS_LINKED_FS_TRANSFORM_MAP = [
+    ("diskPath", "mountpoint"),
+    # ("capacity", "capacityGb"),
+    ("capacityGb", "capacityGb"),
+    ("usedGb", "usedGb"),
+]
+FNT_VS_LINKED_ENTITIES = {
+    "vmIpAddress": {
+        "index": "ipAddress",
+        "class_name": "vmIpAddress",
+        "class_custom": True,
+        "relation_class_name": "CustomVmIpAddress",
+        "relation_class_name_plural": "CustomVmIpAddresses",
+        "transform_map": FNT_VS_LINKED_IP_TRANSFORM_MAP,
+    },
+    "fileSystem": {
+        "index": "mountpoint",
+        "class_name": "fileSystem",
+        "class_custom": False,
+        "relation_class_name": "FileSystem",
+        "relation_class_name_plural": "FileSystems",
+        "transform_map": FNT_VS_LINKED_FS_TRANSFORM_MAP,
+    },
+}
+
+VPOLLER_VM_ATTRIBUTES = [
+    "name",
+    "config.instanceUuid",
+    "config.hardware.numCPU",
+    "config.hardware.memoryMB",
+    "runtime.powerState",
+    "config.annotation",
+]
+VPOLLER_VM_NET_ATTRIBUTES = ["ipAddress"]
+VPOLLER_VM_DISK_ATTRIBUTES = ["diskPath", "capacity", "freeSpace", "freeSpacePercentage"]
+
+FNT_VS_FILTER = {
+# "cUuid": {"operator": "like", "value": "*-*-*-*-*"},
+"datasource": {"operator": "=", "value": vfzsync.CONFIG["vpoller"]["vc_host"]},
+}
+
+FNT_VS_ATTRIBUTES = [
+"id",
+"visibleId",
+"elid",
+"cCpu",
+"cRam",
+"cManagementInterface",
+"cCommunityName",
+"cSdiNewServer",
+"cSdiMonitoring",
+"cSdiDeleted",
+"cUuid",
+"cSdiStatus",
+"cSdHddTotal",
+"cSdiHddUsed",
+"cSdiBackupNeeded",
+"cSdiLastBackup",
+"cSdiMonitoringSnmp",
+"cSdiNoShutdown",
+"remark",
+"datasource"
+]
 
 
-@deflogger
-def init_logging():
-    LOG_SUFFIX = ".log"
-    if DRYRUN:
-        LOG_SUFFIX = "_DRYRUN.log"
-    if DEBUG:
-        LOG_SUFFIX = "_DEBUG.log"
-    if DRYRUN and DEBUG:
-        LOG_SUFFIX = "_DRYDEBUG.log"
-    LOG_FILE = f"{PATH}/log/{NAME_NOEXT}{LOG_SUFFIX}"
-
-    config_logging = config["logging"]
-    config_logging["handlers"]["file"]["filename"] = LOG_FILE
-    logging.config.dictConfig(config_logging)
-    logger = logging.getLogger(NAME_NOEXT)
-    return logger, LOG_FILE
-
-
-def flatten(l):
-    return [item for sublist in l for item in sublist]
-
-
-def normalize_none(attr):
-    if attr is None:
-        attr = ""
-    return attr
-
-
-def yes_no(arg, type=bool):
-    arg_lower = arg.lower()
-    if type == bool:
-        if arg_lower == "y" or arg_lower == "yes":
-            return True
-        return False
-    if type == int:
-        if arg_lower == "y" or arg_lower == "yes":
-            return 1
-        return 0
+def test_config():
+    # print(vfzsync.CONFIG)
+    print('test_config')
 
 
 def gib_round(x):
@@ -99,20 +116,10 @@ def datetime_to_local_timezone(dt):
     return dt.astimezone(tz) # Move the datetime instance to the new time zone.
 
 
-@measure(operation=sum)
-@deflogger
+#@measure(operation=sum)
+#@deflogger
 def get_vpoller_vms(vpoller):
-    VPOLLER_VM_ATTRIBUTES = [
-        "name",
-        "config.instanceUuid",
-        "config.hardware.numCPU",
-        "config.hardware.memoryMB",
-        "runtime.powerState",
-        "config.annotation",
-    ]
-    VPOLLER_VM_NET_ATTRIBUTES = ["ipAddress"]
-    VPOLLER_VM_DISK_ATTRIBUTES = ["diskPath", "capacity", "freeSpace", "freeSpacePercentage"]
-    vpoller_resp = vpoller.run(method="vm.discover", vc_host=config["vpoller"]["vc_host"])
+    vpoller_resp = vpoller.run(method="vm.discover", vc_host=vfzsync.CONFIG["vpoller"]["vc_host"])
     vm_names = [vm["name"] for vm in vpoller_resp]
 
     vms = []
@@ -121,27 +128,27 @@ def get_vpoller_vms(vpoller):
         try:
             vm = vpoller.run(
                 method="vm.get",
-                vc_host=config["vpoller"]["vc_host"],
+                vc_host=vfzsync.CONFIG["vpoller"]["vc_host"],
                 name=vm_name,
                 properties=VPOLLER_VM_ATTRIBUTES,
             )[0]
 
             nets = vpoller.run(
                 method="vm.guest.net.get",
-                vc_host=config["vpoller"]["vc_host"],
+                vc_host=vfzsync.CONFIG["vpoller"]["vc_host"],
                 name=vm_name,
                 properties=VPOLLER_VM_NET_ATTRIBUTES,
             )
 
             disks_discovery = vpoller.run(
-                method="vm.disk.discover", vc_host=config["vpoller"]["vc_host"], name=vm_name
+                method="vm.disk.discover", vc_host=vfzsync.CONFIG["vpoller"]["vc_host"], name=vm_name
             )
 
             disks_indexed = {}
             for disk_obj in disks_discovery[0]["disk"]:
                 disk = vpoller.run(
                     method="vm.disk.get",
-                    vc_host=config["vpoller"]["vc_host"],
+                    vc_host=vfzsync.CONFIG["vpoller"]["vc_host"],
                     name=vm_name,
                     key=disk_obj["diskPath"],
                     properties=VPOLLER_VM_DISK_ATTRIBUTES,
@@ -163,8 +170,8 @@ def get_vpoller_vms(vpoller):
 
 
 #%%
-@measure(operation=sum)
-@deflogger
+#@measure(operation=sum)
+#@deflogger
 def get_fnt_vs(command, index):
 
     virtualservers = command.get_entities(
@@ -187,8 +194,9 @@ def get_fnt_vs(command, index):
     return virtualservers, virtualservers_indexed
 
 
-@deflogger
+#@deflogger
 def sync_fnt_vs(command, vpoller_vms, fnt_virtualservers_indexed):
+
     # create/update vs
     for vm in vpoller_vms:
         vm_uuid = vm["config.instanceUuid"]
@@ -201,7 +209,7 @@ def sync_fnt_vs(command, vpoller_vms, fnt_virtualservers_indexed):
         # populate extra vm attributes
         # vm["last_backup"] = "1970-01-01T00:00:00Z"  # default backup date
         vm["last_backup"] = None
-        vm["vc_host"] = config["vpoller"]["vc_host"]
+        vm["vc_host"] = vfzsync.CONFIG["vpoller"]["vc_host"]
         # vm['last_backup'] = None
         if m := re.match(r".*Time: \[(\d\d\.\d\d\.\d\d\d\d .*?)\].*", vm_annotation):    # noqa
             last_backup = m.group(1)
@@ -233,7 +241,7 @@ def sync_fnt_vs(command, vpoller_vms, fnt_virtualservers_indexed):
             create_update_fnt_vs(command, vs=vs, vs_attr_updateset=vs_attr_updateset)
 
 
-@deflogger
+#@deflogger
 def sync_fnt_vs_entities(command, vs, vm, vs_attr_updateset):
     vs_elid = vs["elid"]
     vs_name = vs["visibleId"]
@@ -323,7 +331,7 @@ def sync_fnt_vs_entities(command, vs, vm, vs_attr_updateset):
 
 
 # todo
-# @deflogger
+# #@deflogger
 # def create_update_fnt_vs_entities(command, entity_attr_updateset, vs_entity=None,
 # entity_class_name=None, entity_class_custom=False):
 #     try:
@@ -338,7 +346,7 @@ def sync_fnt_vs_entities(command, vs, vm, vs_attr_updateset):
 #         logger.error(f"Failed to create/update VirtualServer: {entity_attr_updateset}.")
 
 
-@deflogger
+#@deflogger
 def cleanup_fnt_vs_entities(
     command,
     vs,
@@ -376,7 +384,7 @@ def cleanup_fnt_vs_entities(
             )
 
 
-@deflogger
+#@deflogger
 def create_update_fnt_vs(command, vs_attr_updateset, vs=None):
     try:
         if not vs:
@@ -391,7 +399,7 @@ def create_update_fnt_vs(command, vs_attr_updateset, vs=None):
         logger.error(f"Failed to create/update VirtualServer: {vs_attr_updateset}.")
 
 
-@deflogger
+#@deflogger
 def cleanup_fnt_vs(command, fnt_virtualservers, vpoller_vms_indexed):
     for vs in fnt_virtualservers:
         vs_uuid = vs["cUuid"]  # #dev
@@ -414,8 +422,8 @@ def cleanup_fnt_vs(command, fnt_virtualservers, vpoller_vms_indexed):
                 logger.info(f'Updated VirtualServer {vs["visibleId"]}.')
 
 
-@measure(operation=sum)
-@deflogger
+#@measure(operation=sum)
+#@deflogger
 def run_vpoller_fnt_sync(vpoller, command):
 
     vpoller_vms, vpoller_vms_indexed = get_vpoller_vms(vpoller)
@@ -426,12 +434,12 @@ def run_vpoller_fnt_sync(vpoller, command):
     cleanup_fnt_vs(command, fnt_virtualservers, vpoller_vms_indexed)
 
 
-@measure(operation=sum)
-@deflogger
+#@measure(operation=sum)
+#@deflogger
 def sync_zabbix_hosts(zapi, fnt_virtualservers, zabbix_hosts_indexed_by_host):
-    zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(zapi, config["zabbix"]["hostgroup"])
-    zabbix_template_id = get_zabbix_templateid_by_name(zapi, config["zabbix"]["template"])
-    zabbix_proxy_id = get_zabbix_proxyid_by_name(zapi, config["zabbix"]["proxy"])
+    zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(zapi, vfzsync.CONFIG["zabbix"]["hostgroup"])
+    zabbix_template_id = get_zabbix_templateid_by_name(zapi, vfzsync.CONFIG["zabbix"]["template"])
+    zabbix_proxy_id = get_zabbix_proxyid_by_name(zapi, vfzsync.CONFIG["zabbix"]["proxy"])
 
     for vs in fnt_virtualservers:
         host = zabbix_hosts_indexed_by_host.get(vs["id"], {})
@@ -457,7 +465,7 @@ def sync_zabbix_hosts(zapi, fnt_virtualservers, zabbix_hosts_indexed_by_host):
                     ],
                     "macros": [
                         {"macro": "{$SNMP_COMMUNITY}", "value": vs["cCommunityName"]},
-                        {"macro": "{$VSPHERE.HOST}", "value": config["vpoller"]["vc_host"]},
+                        {"macro": "{$VSPHERE.HOST}", "value": vfzsync.CONFIG["vpoller"]["vc_host"]},
                     ],
                     "templates": [{"templateid": zabbix_template_id}],
                     "proxy_hostid": str(zabbix_proxy_id)
@@ -498,7 +506,7 @@ def sync_zabbix_hosts(zapi, fnt_virtualservers, zabbix_hosts_indexed_by_host):
             if vs["cCommunityName"] and host_community != vs["cCommunityName"]:
                 host_updateset["macros"] = [
                     {"macro": "{$SNMP_COMMUNITY}", "value": vs["cCommunityName"]},
-                    {"macro": "{$VSPHERE.HOST}", "value": config["vpoller"]["vc_host"]}
+                    {"macro": "{$VSPHERE.HOST}", "value": vfzsync.CONFIG["vpoller"]["vc_host"]}
                 ]
 
             host_status = '1'
@@ -555,8 +563,8 @@ def sync_zabbix_hosts(zapi, fnt_virtualservers, zabbix_hosts_indexed_by_host):
                     logger.info(f'Updated Zabbix host {vs["visibleId"]}.')
 
 
-@measure(operation=sum)
-@deflogger
+#@measure(operation=sum)
+#@deflogger
 def cleanup_zabbix_hosts(zapi, zabbix_hosts, fnt_virtualservers_indexed):
     for host in zabbix_hosts:
         host_id = host["hostid"]
@@ -572,8 +580,8 @@ def cleanup_zabbix_hosts(zapi, zabbix_hosts, fnt_virtualservers_indexed):
                 logger.info(f'Deleted Zabbix host {host["host"]}.')
 
 
-@measure(operation=sum)
-@deflogger
+#@measure(operation=sum)
+#@deflogger
 def run_fnt_zabbix_sync(command, zapi):
 
     FNT_ZABBIX_TRANSFORM_MAP = [
@@ -583,7 +591,7 @@ def run_fnt_zabbix_sync(command, zapi):
     ]
 
     fnt_virtualservers, fnt_virtualservers_indexed = get_fnt_vs(command=command, index="id")
-    zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(zapi, config["zabbix"]["hostgroup"])
+    zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(zapi, vfzsync.CONFIG["zabbix"]["hostgroup"])
     zabbix_hosts, zabbix_hosts_indexed_by_host = get_zabbix_hosts(zapi, zabbix_hostgroup_id)
 
     sync_zabbix_hosts(
@@ -596,136 +604,111 @@ def run_fnt_zabbix_sync(command, zapi):
     )
 
 
-#%%
-# Read config file
-PATH = os.path.dirname(__file__)
-PATH_NOEXT = os.path.splitext(__file__)[0]
-NAME_NOEXT = os.path.splitext(os.path.basename(__file__))[0]
-# CONFIG_PATH = f"{PATH_NOEXT}.yaml"
-CONFIG_PATH = f"{PATH}/config/{NAME_NOEXT}.yaml"
-with open(CONFIG_PATH, mode="r", encoding="utf-8") as f:
-    config = yaml.safe_load(f)
+class VFZSync:
+    def __init__(self):
+        super().__init__()
+
+        # Initiate vPoller
+        try:
+            self._vpoller = vPollerAPI(vpoller_endpoint=vfzsync.CONFIG["vpoller"]["endpoint"])
+            self._vpoller.run(method="about", vc_host=vfzsync.CONFIG["vpoller"]["vc_host"])
+        except vPollerException:
+            logger.exception("vPoller exception")
+            raise vPollerException
+
+        # Initiate FNT API
+        try:
+            self._command = FNTCommandAPI(
+                url=vfzsync.CONFIG["command"]["url"],
+                username=vfzsync.CONFIG["command"]["username"],
+                password=vfzsync.CONFIG["command"]["password"],
+            )
+        except FNTNotAuthorized:
+            logger.exception("FNT Command authorization failed.")
+            raise FNTNotAuthorized
+
+        # Initiate ZabbixAPI
+        try:
+            self._zapi = ZabbixAPI(
+                url=vfzsync.CONFIG["zabbix"]["url"],
+                user=vfzsync.CONFIG["zabbix"]["username"],
+                password=vfzsync.CONFIG["zabbix"]["password"],
+            )
+            self._zapi.session.verify = False
+            zabbix_hostgroup_name = vfzsync.CONFIG["zabbix"]["hostgroup"]
+            zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(self._zapi, zabbix_hostgroup_name)
+            if not zabbix_hostgroup_id:
+                zabbix_hostgroup_id = self._zapi.hostgroup.create(name=zabbix_hostgroup_name)
+                logger.info(f"Created Zabbix host group {zabbix_hostgroup_name}.")
+
+        except ZabbixAPIException:
+            logger.exception("Zabbix authorization failed.")
+            raise ZabbixAPIException
 
 
-# Flow control
-DEBUG = debugtoolkit.DEBUG = config["general"]["debug"]
-TRACE = debugtoolkit.TRACE = config["general"]["trace"]
-DRYRUN = debugtoolkit.DRYRUN = config["general"]["dryrun"]
-# dryable.set(False)
+    def run_vpoller_fnt_sync(self):
+        vpoller_vms, vpoller_vms_indexed = get_vpoller_vms(self._vpoller)
+        fnt_virtualservers, fnt_virtualservers_indexed = get_fnt_vs(command=self._command, index="cUuid")
+
+        sync_fnt_vs(self._command, vpoller_vms, fnt_virtualservers_indexed)
+
+        cleanup_fnt_vs(self._command, fnt_virtualservers, vpoller_vms_indexed)
+
+    def run_fnt_zabbix_sync(self):
+
+        FNT_ZABBIX_TRANSFORM_MAP = [
+            ("id", "host"),
+            ("visibleId", "name"),
+            ("cCommunityName", "{$SNMP_COMMUNITY}"),
+        ]
+
+        fnt_virtualservers, fnt_virtualservers_indexed = get_fnt_vs(command=self._command, index="id")
+        zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(self._zapi, vfzsync.CONFIG["zabbix"]["hostgroup"])
+        zabbix_hosts, zabbix_hosts_indexed_by_host = get_zabbix_hosts(self._zapi, zabbix_hostgroup_id)
+
+        sync_zabbix_hosts(
+            self._zapi, fnt_virtualservers=fnt_virtualservers, zabbix_hosts_indexed_by_host=zabbix_hosts_indexed_by_host
+        )
+
+        # cleanup
+        cleanup_zabbix_hosts(
+            self._zapi, zabbix_hosts=zabbix_hosts, fnt_virtualservers_indexed=fnt_virtualservers_indexed
+        )
 
 
-# Logging
-logger, LOG_FILE = init_logging()
-
-
-# exit if already running
-if not DRYRUN and not debugtoolkit.run_once(LOG_FILE):
-    logger.warning(f"{NAME_NOEXT} already running, exiting.")
-    sys.exit(2)
-
-
-# globals
-FNT_VS_ATTRIBUTES = [
-    "id",
-    "visibleId",
-    "elid",
-    "cCpu",
-    "cRam",
-    "cManagementInterface",
-    "cCommunityName",
-    "cSdiNewServer",
-    "cSdiMonitoring",
-    "cSdiDeleted",
-    "cUuid",
-    "cSdiStatus",
-    "cSdHddTotal",
-    "cSdiHddUsed",
-    "cSdiBackupNeeded",
-    "cSdiLastBackup",
-    "cSdiMonitoringSnmp",
-    "cSdiNoShutdown",
-    "remark",
-    "datasource"
-]
-
-VPOLLER_FNT_TRANSFORM_MAP = [
-    ("config.instanceUuid", "cUuid"),
-    ("name", "visibleId"),
-    ("config.hardware.numCPU", "cCpu"),
-    ("config.hardware.memoryMB", "cRam"),
-    ("runtime.powerState", "cSdiStatus"),
-    ("config.annotation", "remark"),
-    ("last_backup", "cSdiLastBackup"),
-    ("vc_host", "datasource"),
-]
-
-FNT_VS_LINKED_IP_TRANSFORM_MAP = [("ipAddress", "ipAddress")]
-FNT_VS_LINKED_FS_TRANSFORM_MAP = [
-    ("diskPath", "mountpoint"),
-    # ("capacity", "capacityGb"),
-    ("capacityGb", "capacityGb"),
-    ("usedGb", "usedGb"),
-]
-FNT_VS_LINKED_ENTITIES = {
-    "vmIpAddress": {
-        "index": "ipAddress",
-        "class_name": "vmIpAddress",
-        "class_custom": True,
-        "relation_class_name": "CustomVmIpAddress",
-        "relation_class_name_plural": "CustomVmIpAddresses",
-        "transform_map": FNT_VS_LINKED_IP_TRANSFORM_MAP,
-    },
-    "fileSystem": {
-        "index": "mountpoint",
-        "class_name": "fileSystem",
-        "class_custom": False,
-        "relation_class_name": "FileSystem",
-        "relation_class_name_plural": "FileSystems",
-        "transform_map": FNT_VS_LINKED_FS_TRANSFORM_MAP,
-    },
-}
-
-FNT_VS_FILTER = {
-    # "cUuid": {"operator": "like", "value": "*-*-*-*-*"},
-    "datasource": {"operator": "=", "value": config["vpoller"]["vc_host"]},
-}
-
-logger.info("Started.")
-
-
-#%%
-# Main code
 def init_apis():
     # global vpoller, command, zapi
 
     # Initiate vPoller
     try:
-        vpoller = vPollerAPI(vpoller_endpoint=config["vpoller"]["endpoint"])
-        vpoller.run(method="about", vc_host=config["vpoller"]["vc_host"])
+        vpoller = vPollerAPI(vpoller_endpoint=vfzsync.CONFIG["vpoller"]["endpoint"])
+        vpoller.run(method="about", vc_host=vfzsync.CONFIG["vpoller"]["vc_host"])
     except vPollerException:
         logger.exception("vPoller exception")
-        sys.exit(3)
+        raise vPollerException
+        # sys.exit(3)
 
     # Initiate FNT API
     try:
         command = FNTCommandAPI(
-            url=config["command"]["url"],
-            username=config["command"]["username"],
-            password=config["command"]["password"],
+            url=vfzsync.CONFIG["command"]["url"],
+            username=vfzsync.CONFIG["command"]["username"],
+            password=vfzsync.CONFIG["command"]["password"],
         )
     except FNTNotAuthorized:
         logger.exception("FNT Command authorization failed.")
-        sys.exit(3)
+        raise FNTNotAuthorized
+        # sys.exit(3)
 
     # Initiate ZabbixAPI
     try:
         zapi = ZabbixAPI(
-            url=config["zabbix"]["url"],
-            user=config["zabbix"]["username"],
-            password=config["zabbix"]["password"],
+            url=vfzsync.CONFIG["zabbix"]["url"],
+            user=vfzsync.CONFIG["zabbix"]["username"],
+            password=vfzsync.CONFIG["zabbix"]["password"],
         )
         zapi.session.verify = False
-        zabbix_hostgroup_name = config["zabbix"]["hostgroup"]
+        zabbix_hostgroup_name = vfzsync.CONFIG["zabbix"]["hostgroup"]
         zabbix_hostgroup_id = get_zabbix_hostgroupid_by_name(zapi, zabbix_hostgroup_name)
         if not zabbix_hostgroup_id:
             zabbix_hostgroup_id = zapi.hostgroup.create(name=zabbix_hostgroup_name)
@@ -733,48 +716,12 @@ def init_apis():
 
     except ZabbixAPIException:
         logger.exception("Zabbix authorization failed.")
-        sys.exit(3)
+        # sys.exit(3)
+        raise ZabbixAPIException
 
     return vpoller, command, zapi
 
-#%%
 
 
-def main():
 
-    # debugtoolkit.crash_me()
-    vpoller, command, zapi = init_apis()
-
-    for i in debugtoolkit.killer_loop(killer, config["general"]["loops"], config["general"]["interval"], exit=True):
-        # vPoller -> FNT
-        run_vpoller_fnt_sync(vpoller, command)
-
-        # FNT -> Zabbix
-        run_fnt_zabbix_sync(command, zapi)
-
-
-def flask_main():
-    try:
-        # debugtoolkit.crash_me()
-        from random import random
-        if random() > 0.5:
-            vpoller, command, zapi = init_apis()
-
-        # vPoller -> FNT
-        run_vpoller_fnt_sync(vpoller, command)
-
-        # FNT -> Zabbix
-        run_fnt_zabbix_sync(command, zapi)
-    except Exception:
-        time.sleep(2)
-        return "failed"
-
-    else:
-        return "done"
-
-
-if __name__ == "__main__":
-    sys.excepthook = handle_exception
-    atexit.register(exit_process)
-    killer = debugtoolkit.KillHandler()
-    main()
+logger = init_logger()
