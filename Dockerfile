@@ -9,6 +9,18 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # This keeps Python from buffering stdin/stdout
 ENV PYTHONUNBUFFERED 1
 
+# #dev
+ARG APT_FLAGS_COMMON="-y"
+ARG APT_FLAGS_PERSISTENT="${APT_FLAGS_COMMON} --no-install-recommends"
+ARG APT_FLAGS_DEV="${APT_FLAGS_COMMON} --no-install-recommends"
+RUN set -eux && \
+    apt-get ${APT_FLAGS_COMMON} update && \
+    DEBIAN_FRONTEND=noninteractive apt-get ${APT_FLAGS_DEV} install \
+    vim && \
+    apt-get ${APT_FLAGS_COMMON} autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
+
 RUN useradd --create-home app
 ENV APP_HOME=/home/app
 WORKDIR $APP_HOME

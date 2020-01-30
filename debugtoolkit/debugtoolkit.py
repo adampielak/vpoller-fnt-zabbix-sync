@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 import inspect
+import types
 
 from datetime import datetime
 from functools import wraps
@@ -191,19 +192,23 @@ def killer_sleep(killer, start_time, period, exit):
         sleep(sleep_time)
 
 
-def deflogger_module(module, decorator):
+def deflogger_module(module, decorator_def, decorator_class=None):
     for name, member in inspect.getmembers(module):
         if inspect.getmodule(member) == module and callable(member):
-            if member == deflogger_module or member == decorator:
+            if member == deflogger_module or member == decorator_def:
                 continue
-            module.__dict__[name] = decorator(member)
+            if isinstance(member, types.FunctionType):
+                module.__dict__[name] = decorator_def(member)
+            elif decorator_class:
+                module.__dict__[name] = decorator_class(member)
 
 
 def deflogger_class(cls):
     for attr in cls.__dict__:
         if callable(getattr(cls, attr)):
             setattr(cls, attr, deflogger(getattr(cls, attr)))
-    return cls 
+    return cls
+
 
 fh = 0
 
@@ -214,5 +219,7 @@ START_TIME = datetime.now()
 TRACE = False
 DRYRUN = False
 DEBUG = False
+LOGLEVEL = logging.INFO
 
 logger = init_logger()
+logger.debug(f'{__name__} init done.')

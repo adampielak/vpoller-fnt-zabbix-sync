@@ -1,4 +1,4 @@
-from vfzsync.lib.debugtoolkit import (init_logger, crash_me, debug_exception, deflogger,
+from debugtoolkit.debugtoolkit import (init_logger, crash_me, debug_exception, deflogger,
                            deflogger_module, dry_request, handle_exception,
                            measure, killer_loop)
 from vfzsync.lib.vfzlib import VFZSync
@@ -7,24 +7,34 @@ import time
 
 
 def run_sync():
+    result = {}
+
+    #dev
     from random import random
-    if random() > 0.3:
+    if random() > 0.9:
         logger.debug("random failure")
-        time.sleep(2)
-        return "failed"
+        time.sleep(1)
+        result['message'] = "Random failure."
+        result['success'] = False
+        return result
 
     try:
-        vfzsync = VFZSync()
-    except Exception:
-        logger.exception(f"Failed to initialize vfzsync.")
+        if random() > 0.9:
+            crash_me()
+        sync = VFZSync()
+        stats = sync.run_sync()
 
-    else:
-        # vPoller -> FNT
-        vfzsync.run_vpoller_fnt_sync()
+    except Exception as e:
+        logger.exception(f"Sync failed.")
+        result['message'] = "Sync failed."
+        result['exception'] = str(e)
+        result['success'] = False
+        return result
 
-        # FNT -> Zabbix
-        vfzsync.run_fnt_zabbix_sync()
-
-    return "done"
+    result['message'] = "completed"
+    result['success'] = True
+    result['stats'] = stats
+    return result
 
 logger = init_logger()
+logger.debug(f'{__name__} init done.')

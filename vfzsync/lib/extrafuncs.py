@@ -9,6 +9,8 @@ def normalize_none(attr):
 
 
 def yes_no(arg, type=bool):
+    if not arg:
+        arg = 'n'
     arg_lower = arg.lower()
     if type == bool:
         if arg_lower == "y" or arg_lower == "yes":

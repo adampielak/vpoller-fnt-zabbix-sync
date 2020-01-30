@@ -508,6 +508,22 @@ test = ["pytest", "pytest-cov", "testpath"]
 
 [[package]]
 category = "dev"
+description = "nose extends unittest to make testing easier"
+name = "nose"
+optional = false
+python-versions = "*"
+version = "1.3.7"
+
+[[package]]
+category = "dev"
+description = "Parameterized testing with any Python test framework (DEPRECATED; See the 'parameterized' package)"
+name = "nose-parameterized"
+optional = false
+python-versions = "*"
+version = "0.6.0"
+
+[[package]]
+category = "dev"
 description = "A web-based notebook environment for interactive computing"
 name = "notebook"
 optional = false
@@ -563,6 +579,14 @@ name = "pandocfilters"
 optional = false
 python-versions = "*"
 version = "1.4.2"
+
+[[package]]
+category = "dev"
+description = "A decorator collection allowing for simple parametrized test case definitions."
+name = "parametrized"
+optional = false
+python-versions = "*"
+version = "0.1"
 
 [[package]]
 category = "dev"
@@ -956,7 +980,7 @@ version = "3.5.1"
 notebook = ">=4.4.1"
 
 [metadata]
-content-hash = "be596a47e87b8ace8257c3d6345723345a1f53402ce16dc2edf8bde9712a5fbe"
+content-hash = "9200183de4e8d3917c8418a1b0461044eb97b71c68230dae75bfe93ebbc11a41"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -1134,6 +1158,15 @@ nbformat = [
     {file = "nbformat-4.4.0-py2.py3-none-any.whl", hash = "sha256:b9a0dbdbd45bb034f4f8893cafd6f652ea08c8c1674ba83f2dc55d3955743b0b"},
     {file = "nbformat-4.4.0.tar.gz", hash = "sha256:f7494ef0df60766b7cabe0a3651556345a963b74dbc16bc7c18479041170d402"},
 ]
+nose = [
+    {file = "nose-1.3.7-py2-none-any.whl", hash = "sha256:dadcddc0aefbf99eea214e0f1232b94f2fa9bd98fa8353711dacb112bfcbbb2a"},
+    {file = "nose-1.3.7-py3-none-any.whl", hash = "sha256:9ff7c6cc443f8c51994b34a667bbcf45afd6d945be7477b52e97516fd17c53ac"},
+    {file = "nose-1.3.7.tar.gz", hash = "sha256:f1bffef9cbc82628f6e7d7b40d7e255aefaa1adb6a1b1d26c69a8b79e6208a98"},
+]
+nose-parameterized = [
+    {file = "nose-parameterized-0.6.0.tar.gz", hash = "sha256:d35e677aba2f15135b6b7ea7feb88f792b899492ba5365ec0e269015df5214ce"},
+    {file = "nose_parameterized-0.6.0-py2.py3-none-any.whl", hash = "sha256:8f519b9739ac67e3d95f69c15cc80416eea4d63559530d01a37b9565eb629277"},
+]
 notebook = [
     {file = "notebook-6.0.2-py3-none-any.whl", hash = "sha256:f67d76a68b1074a91693e95dea903ea01fd02be7c9fac5a4b870b8475caed805"},
     {file = "notebook-6.0.2.tar.gz", hash = "sha256:399a4411e171170173344761e7fd4491a3625659881f76ce47c50231ed714d9b"},
@@ -1184,6 +1217,10 @@ pandas = [
 ]
 pandocfilters = [
     {file = "pandocfilters-1.4.2.tar.gz", hash = "sha256:b3dd70e169bb5449e6bc6ff96aea89c5eea8c5f6ab5e207fc2f521a2cf4a0da9"},
+]
+parametrized = [
+    {file = "parametrized-0.1.tar.gz", hash = "sha256:ad55c4d803715bd921869701757bd3604dfa1deacdee53e835c0a4840ddb102d"},
+    {file = "parametrized-0.1.zip", hash = "sha256:f2d42384fee14ecceb09156a2219415c9a92af998b183092bc7f27ba3fd3c7f5"},
 ]
 parso = [
     {file = "parso-0.5.2-py2.py3-none-any.whl", hash = "sha256:5c1f7791de6bd5dbbeac8db0ef5594b36799de198b3f7f7014643b0c5536b9d3"},

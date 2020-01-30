@@ -1,8 +1,6 @@
-from .debugtoolkit import deflogger, dry_request, init_logger, measure
+from debugtoolkit.debugtoolkit import deflogger, dry_request, init_logger, measure
 
 
-#@measure(operation=sum)
-#@deflogger
 def get_zabbix_hosts(zapi, zabbix_hostgroup_id):
     hosts = zapi.host.get(
         output=["name", "host", "status"],
@@ -14,7 +12,6 @@ def get_zabbix_hosts(zapi, zabbix_hostgroup_id):
     return hosts, hosts_indexed_by_host
 
 
-#@deflogger
 def get_zabbix_hostgroupid_by_name(zapi, name):
     groups = zapi.hostgroup.get(filter={"name": name})
     if groups:
@@ -23,17 +20,14 @@ def get_zabbix_hostgroupid_by_name(zapi, name):
         return None
 
 
-#@deflogger
 def get_zabbix_templateid_by_name(zapi, name):
     return int(zapi.template.get(filter={"host": name})[0]["templateid"])
 
 
-#@deflogger
 def get_zabbix_proxyid_by_name(zapi, name):
     return int(zapi.proxy.get(filter={"host": name})[0]["proxyid"])
 
 
-#@deflogger
 def get_zabbix_host_triggers(zapi, hostids):
     triggers = zapi.trigger.get(
         hostids=hostids,

@@ -10,12 +10,14 @@ VFZ Sync
         $('a#sync').bind('click', function() {
           $('#result').attr('class', "")
           $("#result").text("Syncing..");
-          $.getJSON($SCRIPT_ROOT + '/api/vfzsync', {
+          // $.getJSON($SCRIPT_ROOT + '/api/sync/run', {
+          $.getJSON('api/sync/run', {
           }, function(data) {
-            $("#result").text("Synchronization " + data.result);
-            if (data.result == 'done') {
+            if (data.success) {
+              $("#result").text("Synchronization succeeded.");
               $('#result').attr('class', "success");
             } else {
+              $("#result").text("Synchronization failed: " + data.message + "\nException: \n" + data.exception);
               $('#result').attr('class', "error");
             }
           });

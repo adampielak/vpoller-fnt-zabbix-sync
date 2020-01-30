@@ -21,6 +21,7 @@ general:
   debug: ${GENERAL_DEBUG}
   dryrun: ${GENERAL_DRYRUN}
   trace: ${GENERAL_TRACE}
+  loglevel: ${GENERAL_LOGLEVEL}
   interval: ${GENERAL_INTERVAL}
   loops: ${GENERAL_LOOPS}
 
@@ -45,7 +46,9 @@ logging:
   version: 1
   formatters:
     simple:
-      format: '%(asctime)s:%(name)s:%(levelname)s:%(message)s'
+      format: '%(asctime)s:%(module)s:%(name)s:%(levelname)s:%(message)s'
+    default:
+      format: '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
   handlers:
     console:
       class: logging.StreamHandler
@@ -57,31 +60,72 @@ logging:
       level: ERROR
       formatter: simple
       filename: <defined_in_code.log>
+    wsgi:
+      class: logging.StreamHandler
+      stream: ext://flask.logging.wsgi_errors_stream
+      formatter: simple
+logging:
+  version: 1
+  formatters:
+    simple:
+      format: '%(asctime)s:%(module)s:%(name)s:%(levelname)s:%(message)s'
+    default:
+      format: '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stderr
+    file:
+      class: logging.FileHandler
+      level: ERROR
+      formatter: simple
+      filename: <defined_in_code.log>
+    wsgi:
+      class: logging.StreamHandler
+      stream: ext://flask.logging.wsgi_errors_stream
+      formatter: simple
   loggers:
     vfzsync:
-      level: DEBUG
-      handlers: [console, file]
-      propagate: no
-    __main__:
-      level: DEBUG
-      handlers: [console, file]
+      level: ${GENERAL_LOGLEVEL}
+      handlers: [file, wsgi]
       propagate: no
     vfzlib:
-      level: DEBUG
+      level: ${GENERAL_LOGLEVEL}
+      handlers: [console, file, wsgi]
+      propagate: no
+    __main__:
+      level: ${GENERAL_LOGLEVEL}
       handlers: [console, file]
+      propagate: no
+    werkzeug:
+      level: WARN
+      handlers: [wsgi]
+      propagate: no
+    gunicorn:
+      level: ${GENERAL_LOGLEVEL}
+      handlers: [wsgi]
+      propagate: no
+    gunicorn.access:
+      level: WARN
+      handlers: [wsgi]
+      propagate: no
+    gunicorn.error:
+      level: ${GENERAL_LOGLEVEL}
+      handlers: [wsgi]
       propagate: no
     pyzabbix:
       level: INFO
-      handlers: [console, file]
+      handlers: [file, wsgi]
       propagate: no
     requests.packages.urllib3:
       level: WARN
-      handlers: [console, file]
+      handlers: [file, wsgi]
       propagate: yes
-
   root:
     level: WARN
-    handlers: [console, file]
+    handlers: [console, file, wsgi]
 
 END
 )

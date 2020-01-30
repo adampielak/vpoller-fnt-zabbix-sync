@@ -3,9 +3,9 @@ from vfzsync import app
 import vfzsync.vfz_flask as vfz_flask
 
 
-@app.route('/api/vfzsync/')
+@app.route('/api/sync/run')
 def vfzsync():
-    return jsonify(result=vfz_flask.run_sync())
+    return jsonify(vfz_flask.run_sync())
 
 
 @app.route('/home')
