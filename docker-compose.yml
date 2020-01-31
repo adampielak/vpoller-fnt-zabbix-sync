@@ -1,7 +1,7 @@
 version: '3.5'
 services:
  vfzsync:
-  image: djettah/vfzsync:latest
+  image: djettah/vfzsync:0.4.7
   restart: always
   volumes:
    - /etc/localtime:/etc/localtime:ro

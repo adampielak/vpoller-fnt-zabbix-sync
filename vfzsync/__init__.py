@@ -55,9 +55,9 @@ import debugtoolkit.debugtoolkit as debugtoolkit
 debugtoolkit.DEBUG = CONFIG["general"]["debug"]
 debugtoolkit.TRACE = CONFIG["general"]["trace"]
 debugtoolkit.DRYRUN = CONFIG["general"]["dryrun"]
-debugtoolkitLOGLEVEL = eval(CONFIG["general"]["loglevel"])
-if debugtoolkitLOGLEVEL <= logging.DEBUG:
-    debugtoolkit.TRACE = True
+# debugtoolkit.LOGLEVEL = eval(CONFIG["general"]["loglevel"])
+# if debugtoolkit.LOGLEVEL <= logging.DEBUG:
+#     debugtoolkit.TRACE = True
 
 
 app = Flask(__name__)

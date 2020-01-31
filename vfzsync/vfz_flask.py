@@ -10,17 +10,17 @@ def run_sync():
     result = {}
 
     #dev
-    from random import random
-    if random() > 0.9:
-        logger.debug("random failure")
-        time.sleep(1)
-        result['message'] = "Random failure."
-        result['success'] = False
-        return result
+    # from random import random
+    # if random() > 0.9:
+    #     logger.debug("random failure")
+    #     time.sleep(1)
+    #     result['message'] = "Random failure."
+    #     result['success'] = False
+    #     return result
 
     try:
-        if random() > 0.9:
-            crash_me()
+        # if random() > 0.9:
+        #     crash_me()
         sync = VFZSync()
         stats = sync.run_sync()
 

@@ -10,15 +10,15 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # #dev
-ARG APT_FLAGS_COMMON="-y"
-ARG APT_FLAGS_PERSISTENT="${APT_FLAGS_COMMON} --no-install-recommends"
-ARG APT_FLAGS_DEV="${APT_FLAGS_COMMON} --no-install-recommends"
-RUN set -eux && \
-    apt-get ${APT_FLAGS_COMMON} update && \
-    DEBIAN_FRONTEND=noninteractive apt-get ${APT_FLAGS_DEV} install \
-    vim && \
-    apt-get ${APT_FLAGS_COMMON} autoremove && \
-    rm -rf /var/lib/apt/lists/*
+# ARG APT_FLAGS_COMMON="-y"
+# ARG APT_FLAGS_PERSISTENT="${APT_FLAGS_COMMON} --no-install-recommends"
+# ARG APT_FLAGS_DEV="${APT_FLAGS_COMMON} --no-install-recommends"
+# RUN set -eux && \
+#     apt-get ${APT_FLAGS_COMMON} update && \
+#     DEBIAN_FRONTEND=noninteractive apt-get ${APT_FLAGS_DEV} install \
+#     vim && \
+#     apt-get ${APT_FLAGS_COMMON} autoremove && \
+#     rm -rf /var/lib/apt/lists/*
 
 
 RUN useradd --create-home app
@@ -27,10 +27,11 @@ WORKDIR $APP_HOME
 
 COPY pyproject.toml .
 COPY poetry.lock .
+COPY debugtoolkit/*.py vfzsync/debugtoolkit/
 COPY vfzsync/vfz_*.py vfzsync/
 COPY vfzsync/__*.py vfzsync/
 COPY vfzsync/lib/*.py vfzsync/lib/
-RUN --mount=type=cache,target=$APP_HOME/.cache/pip python3 -m pip install .
+RUN --mount=type=cache,target=/home/app/.cache/pip python3 -m pip install .
 # flask
 COPY vfzsync/static vfzsync/static
 COPY vfzsync/templates vfzsync/templates
